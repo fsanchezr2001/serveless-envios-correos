@@ -1,0 +1,31 @@
+# Dependencies
+node_modules
+frontend/node_modules
+
+# Build output
+dist/
+target/
+*.jar
+
+# Environment / secrets
+.env
+
+# Logs
+*.log
+
+# IDE / editor
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Git
+.git
+.gitignore
+.atl/
+
+# Repository documentation (not needed in the build context)
+agente.md
+README.md
+odd/
