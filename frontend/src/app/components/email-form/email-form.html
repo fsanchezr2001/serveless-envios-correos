@@ -1,0 +1,63 @@
+<form class="email-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  <h1>Send an email</h1>
+  <p class="subtitle">Messages are delivered through the backend and SendGrid.</p>
+
+  <div class="field">
+    <label for="to">Recipient email</label>
+    <input id="to" type="email" formControlName="to" autocomplete="email" />
+    @if (form.controls.to.touched && form.controls.to.invalid) {
+      <p class="field-error">
+        @if (form.controls.to.hasError('required')) {
+          Recipient email is required.
+        } @else if (form.controls.to.hasError('email')) {
+          Enter a valid email address.
+        }
+      </p>
+    }
+  </div>
+
+  <div class="field">
+    <label for="toName">Recipient name <span class="optional">(optional)</span></label>
+    <input id="toName" type="text" formControlName="toName" autocomplete="name" />
+  </div>
+
+  <div class="field">
+    <label for="subject">Subject</label>
+    <input id="subject" type="text" formControlName="subject" />
+    @if (form.controls.subject.touched && form.controls.subject.invalid) {
+      <p class="field-error">
+        @if (form.controls.subject.hasError('required')) {
+          Subject is required.
+        } @else if (form.controls.subject.hasError('maxlength')) {
+          Subject must be 150 characters or fewer.
+        }
+      </p>
+    }
+  </div>
+
+  <div class="field">
+    <label for="message">Message</label>
+    <textarea id="message" rows="6" formControlName="message"></textarea>
+    @if (form.controls.message.touched && form.controls.message.invalid) {
+      <p class="field-error">
+        @if (form.controls.message.hasError('required')) {
+          Message is required.
+        } @else if (form.controls.message.hasError('maxlength')) {
+          Message must be 5000 characters or fewer.
+        }
+      </p>
+    }
+  </div>
+
+  <button type="submit" [disabled]="sending()">
+    {{ sending() ? 'Sending...' : 'Send email' }}
+  </button>
+
+  @if (successMessage()) {
+    <p class="banner banner-success" role="status">{{ successMessage() }}</p>
+  }
+
+  @if (errorMessage()) {
+    <p class="banner banner-error" role="alert">{{ errorMessage() }}</p>
+  }
+</form>

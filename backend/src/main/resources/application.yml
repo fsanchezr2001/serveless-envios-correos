@@ -1,0 +1,19 @@
+server:
+  port: ${PORT:8080}
+# Pin the locale so validation messages do not depend on the host JVM locale
+# (dev machine vs container). Change to "es" together with the frontend copy
+# if the user-facing language ever needs to be Spanish.
+spring:
+  web:
+    locale: en
+    locale-resolver: fixed
+sendgrid:
+  api-key: ${SENDGRID_API_KEY:}
+  from-email: ${SENDGRID_FROM_EMAIL:no-reply@example.com}
+  from-name: ${SENDGRID_FROM_NAME:Serveless Envio Correo}
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+logging:
+  level:
+    com.serveless.envio: INFO

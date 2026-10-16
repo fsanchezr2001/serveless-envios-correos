@@ -1,0 +1,43 @@
+# Render Blueprint (infrastructure-as-code) for the email flow:
+#   Angular frontend  ->  Spring Boot backend  ->  SendGrid  ->  end user
+#
+# Deploy with: Render Dashboard -> New -> Blueprint -> select this repository.
+# Secrets are declared with `sync: false`: Render prompts for the value in the
+# dashboard and never stores it in this file, so nothing sensitive is committed.
+#
+# Deploy order matters: the frontend build compiles the backend URL into the
+# bundle (`frontend/src/environments/environment.ts`), so deploy the backend
+# first, copy its URL, set `apiUrl`, then deploy/rebuild the frontend.
+services:
+  # --------------------------------------------------------------- backend
+  # No database: this service is stateless (no send log, no idempotency store).
+  - type: web
+    name: envio-correo-backend
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Spring Boot reads the injected PORT env var; see application.yml.
+    healthCheckPath: /api/emails/health
+    envVars:
+      # SendGrid API key with "Mail Send" restricted access only.
+      - key: SENDGRID_API_KEY
+        sync: false
+      # Must equal the verified Single Sender / Domain Authentication address.
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: SENDGRID_FROM_NAME
+        sync: false
+      # Deployed frontend origin, e.g. https://envio-correo-frontend.onrender.com
+      # Defaults to http://localhost:4200 when unset.
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+
+  # -------------------------------------------------------------- frontend
+  - type: web
+    name: envio-correo-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist/frontend/browser
