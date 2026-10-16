@@ -4,7 +4,6 @@ import com.serveless.envio.dto.SendEmailRequest;
 import com.serveless.envio.dto.SendEmailResponse;
 import com.serveless.envio.service.EmailService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,7 +26,7 @@ public class EmailController {
 	@PostMapping
 	public ResponseEntity<SendEmailResponse> send(@Valid @RequestBody SendEmailRequest request) {
 		SendEmailResponse response = emailService.send(request);
-		return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+		return ResponseEntity.ok(response);
 	}
 
 	@GetMapping("/health")
