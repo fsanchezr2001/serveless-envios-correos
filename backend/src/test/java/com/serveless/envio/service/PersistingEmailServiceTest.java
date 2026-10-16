@@ -1,10 +1,10 @@
 package com.serveless.envio.service;
 
-import com.serveless.envio.domain.SentEmail;
+import com.serveless.envio.model.EmailLog;
 import com.serveless.envio.dto.SendEmailRequest;
 import com.serveless.envio.dto.SendEmailResponse;
 import com.serveless.envio.exception.EmailSendException;
-import com.serveless.envio.repository.SentEmailRepository;
+import com.serveless.envio.repository.EmailLogRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 class PersistingEmailServiceTest {
 
 	private final SendGridEmailService delegate = mock(SendGridEmailService.class);
-	private final SentEmailRepository repository = mock(SentEmailRepository.class);
+	private final EmailLogRepository repository = mock(EmailLogRepository.class);
 	private final PersistingEmailService service = new PersistingEmailService(delegate, repository);
 
 	private SendEmailRequest buildRequest() {
@@ -40,10 +40,10 @@ class PersistingEmailServiceTest {
 	void persistsPendingIntentBeforeCallingTheProvider() {
 		service.send(buildRequest());
 
-		ArgumentCaptor<SentEmail> captor = ArgumentCaptor.forClass(SentEmail.class);
+		ArgumentCaptor<EmailLog> captor = ArgumentCaptor.forClass(EmailLog.class);
 		verify(repository).save(captor.capture());
 
-		SentEmail persisted = captor.getValue();
+		EmailLog persisted = captor.getValue();
 		assertEquals("PENDING", persisted.getStatus());
 		assertEquals("recipient@example.com", persisted.getTo());
 		assertEquals("<p>Hello from test</p>", persisted.getBody());
@@ -62,7 +62,7 @@ class PersistingEmailServiceTest {
 
 	@Test
 	void doesNotCallProviderWhenPersistFails() {
-		when(repository.save(any(SentEmail.class))).thenThrow(new RuntimeException("db down"));
+		when(repository.save(any(EmailLog.class))).thenThrow(new RuntimeException("db down"));
 
 		EmailSendException exception = assertThrows(EmailSendException.class, () -> service.send(buildRequest()));
 

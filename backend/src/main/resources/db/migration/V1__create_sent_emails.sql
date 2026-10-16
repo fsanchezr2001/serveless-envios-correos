@@ -1,4 +1,4 @@
-CREATE TABLE sent_emails (
+CREATE TABLE email_logs (
   id CHAR(36) NOT NULL PRIMARY KEY,
   recipient VARCHAR(255) NOT NULL,
   to_name VARCHAR(255),
@@ -8,4 +8,4 @@ CREATE TABLE sent_emails (
   sent_at TIMESTAMP NOT NULL,
   provider_message_id VARCHAR(255),
   error_message VARCHAR(2000)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+);

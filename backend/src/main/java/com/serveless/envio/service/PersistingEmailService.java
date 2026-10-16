@@ -1,10 +1,10 @@
 package com.serveless.envio.service;
 
-import com.serveless.envio.domain.SentEmail;
+import com.serveless.envio.model.EmailLog;
 import com.serveless.envio.dto.SendEmailRequest;
 import com.serveless.envio.dto.SendEmailResponse;
 import com.serveless.envio.exception.EmailSendException;
-import com.serveless.envio.repository.SentEmailRepository;
+import com.serveless.envio.repository.EmailLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
@@ -30,16 +30,16 @@ public class PersistingEmailService implements EmailService {
 	private static final int ERROR_MESSAGE_MAX_LENGTH = 2000;
 
 	private final SendGridEmailService delegate;
-	private final SentEmailRepository repository;
+	private final EmailLogRepository repository;
 
-	public PersistingEmailService(SendGridEmailService delegate, SentEmailRepository repository) {
+	public PersistingEmailService(SendGridEmailService delegate, EmailLogRepository repository) {
 		this.delegate = delegate;
 		this.repository = repository;
 	}
 
 	@Override
 	public SendEmailResponse send(SendEmailRequest request) {
-		SentEmail pending = new SentEmail();
+		EmailLog pending = new EmailLog();
 		pending.setTo(request.getTo());
 		pending.setToName(request.getToName());
 		pending.setSubject(request.getSubject());
