@@ -18,7 +18,6 @@ import static org.mockito.Mockito.when;
 class SendGridEmailServiceTest {
 
 	private static final String FROM_EMAIL = "no-reply@example.com";
-	private static final String FROM_NAME = "Serveless Envio Correo";
 
 	private SendEmailRequest buildRequest() {
 		SendEmailRequest request = new SendEmailRequest();
@@ -40,7 +39,7 @@ class SendGridEmailServiceTest {
 		SendGrid sendGrid = mock(SendGrid.class);
 		when(sendGrid.api(any(Request.class))).thenReturn(responseWithStatus(202));
 
-		SendGridEmailService service = new SendGridEmailService(sendGrid, FROM_EMAIL, FROM_NAME);
+		SendGridEmailService service = new SendGridEmailService(sendGrid, FROM_EMAIL);
 
 		SendEmailResponse response = service.send(buildRequest());
 
@@ -52,7 +51,7 @@ class SendGridEmailServiceTest {
 		SendGrid sendGrid = mock(SendGrid.class);
 		when(sendGrid.api(any(Request.class))).thenReturn(responseWithStatus(400));
 
-		SendGridEmailService service = new SendGridEmailService(sendGrid, FROM_EMAIL, FROM_NAME);
+		SendGridEmailService service = new SendGridEmailService(sendGrid, FROM_EMAIL);
 
 		EmailSendException exception = assertThrows(EmailSendException.class, () -> service.send(buildRequest()));
 		assertEquals(400, exception.getStatusCode());

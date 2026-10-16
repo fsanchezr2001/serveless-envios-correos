@@ -24,15 +24,12 @@ public class SendGridEmailService implements EmailService {
 
 	private final SendGrid sendGrid;
 	private final String fromEmail;
-	private final String fromName;
 
 	public SendGridEmailService(
 			SendGrid sendGrid,
-			@Value("${sendgrid.from-email}") String fromEmail,
-			@Value("${sendgrid.from-name}") String fromName) {
+			@Value("${sendgrid.from}") String fromEmail) {
 		this.sendGrid = sendGrid;
 		this.fromEmail = fromEmail;
-		this.fromName = fromName;
 	}
 
 	/**
@@ -49,7 +46,7 @@ public class SendGridEmailService implements EmailService {
 	@Override
 	public SendEmailResponse send(SendEmailRequest request) {
 		lastProviderMessageId.set(null);
-		Email from = new Email(fromEmail, fromName);
+		Email from = new Email(fromEmail);
 		Email to = new Email(request.getTo(), request.getToName());
 		Content content = new Content("text/html", request.getMessage());
 		Mail mail = new Mail(from, request.getSubject(), to, content);

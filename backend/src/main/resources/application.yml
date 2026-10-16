@@ -2,31 +2,21 @@ server:
   port: ${PORT:8080}
 
 spring:
-  web:
-    locale: en
-    locale-resolver: fixed
   datasource:
-    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL}}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:h2:file:/data/emaildb}
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: false
   jpa:
     hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
   flyway:
-    enabled: true
+    enabled: false
 
 sendgrid:
   api-key: ${SENDGRID_API_KEY}
-  from-email: ${SENDGRID_FROM_EMAIL}
-  from-name: ${SENDGRID_FROM_NAME}
-
-app:
-  cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
-
-logging:
-  level:
-    org.springframework.web: INFO
-    com.serveless.envio: DEBUG
+  from: ${SENDGRID_FROM}
