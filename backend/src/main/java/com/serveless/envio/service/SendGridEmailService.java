@@ -35,15 +35,20 @@ public class SendGridEmailService implements EmailService {
 		this.fromName = fromName;
 	}
 
-	private String lastProviderMessageId;
+	/**
+	 * Provider message id of the most recent send on the current thread. Held in a
+	 * {@link ThreadLocal} because this service is a singleton: a plain field would be
+	 * shared across concurrent requests and return the wrong id to another request.
+	 */
+	private final ThreadLocal<String> lastProviderMessageId = new ThreadLocal<>();
 
 	public String getLastProviderMessageId() {
-		return lastProviderMessageId;
+		return lastProviderMessageId.get();
 	}
 
 	@Override
 	public SendEmailResponse send(SendEmailRequest request) {
-		lastProviderMessageId = null;
+		lastProviderMessageId.set(null);
 		Email from = new Email(fromEmail, fromName);
 		Email to = new Email(request.getTo(), request.getToName());
 		Content content = new Content("text/html", request.getMessage());
@@ -74,13 +79,13 @@ public class SendGridEmailService implements EmailService {
 			if (response.getHeaders() != null) {
 				for (String key : response.getHeaders().keySet()) {
 					if (key != null && "X-Message-Id".equalsIgnoreCase(key)) {
-						lastProviderMessageId = response.getHeaders().get(key);
+						lastProviderMessageId.set(response.getHeaders().get(key));
 						break;
 					}
 				}
 			}
 		} catch (Exception ignored) {
-			lastProviderMessageId = null;
+			lastProviderMessageId.set(null);
 		}
 
 		log.info("Email accepted by SendGrid for recipient {} with status {}", request.getTo(), statusCode);

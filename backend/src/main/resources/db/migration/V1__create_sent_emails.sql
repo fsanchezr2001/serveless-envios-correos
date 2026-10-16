@@ -1,6 +1,6 @@
 CREATE TABLE sent_emails (
   id CHAR(36) NOT NULL PRIMARY KEY,
-  `to` VARCHAR(255) NOT NULL,
+  recipient VARCHAR(255) NOT NULL,
   to_name VARCHAR(255),
   subject VARCHAR(150) NOT NULL,
   body TEXT NOT NULL,

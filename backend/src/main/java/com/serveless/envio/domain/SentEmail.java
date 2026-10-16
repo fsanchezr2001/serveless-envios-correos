@@ -12,7 +12,7 @@ public class SentEmail {
     @Column(name = "id", length = 36, nullable = false)
     private String id = UUID.randomUUID().toString();
 
-    @Column(name = "`to`", nullable = false, length = 255)
+    @Column(name = "recipient", nullable = false, length = 255)
     private String to;
 
     @Column(name = "to_name", length = 255)

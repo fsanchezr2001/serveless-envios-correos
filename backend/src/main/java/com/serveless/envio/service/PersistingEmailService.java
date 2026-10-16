@@ -5,78 +5,81 @@ import com.serveless.envio.dto.SendEmailRequest;
 import com.serveless.envio.dto.SendEmailResponse;
 import com.serveless.envio.exception.EmailSendException;
 import com.serveless.envio.repository.SentEmailRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+/**
+ * Write-then-send decorator around {@link SendGridEmailService}.
+ *
+ * <p>Every email is persisted before the provider call so no message is lost if
+ * the process dies mid-send. Persistence is fail-closed: if the initial insert
+ * fails, the email is NOT sent. The row starts as {@code PENDING} and is moved
+ * to its terminal state ({@code SENT}/{@code FAILED}) by an independent atomic
+ * UPDATE, so the outcome is recorded even though this method itself is not
+ * transactional.</p>
+ */
 @Service
 @Primary
 public class PersistingEmailService implements EmailService {
 
-    private final SendGridEmailService delegate;
-    private final SentEmailRepository repository;
+	private static final Logger log = LoggerFactory.getLogger(PersistingEmailService.class);
+	private static final int ERROR_MESSAGE_MAX_LENGTH = 2000;
 
-    public PersistingEmailService(SendGridEmailService delegate, SentEmailRepository repository) {
-        this.delegate = delegate;
-        this.repository = repository;
-    }
+	private final SendGridEmailService delegate;
+	private final SentEmailRepository repository;
 
-    @Override
-    public SendEmailResponse send(SendEmailRequest request) {
-        SentEmail pending = new SentEmail();
-        pending.setTo(request.getTo());
-        pending.setToName(request.getToName());
-        pending.setSubject(request.getSubject());
-        pending.setBody(request.getMessage());
-        pending.setStatus("PENDING");
-        pending.setSentAt(Instant.now());
+	public PersistingEmailService(SendGridEmailService delegate, SentEmailRepository repository) {
+		this.delegate = delegate;
+		this.repository = repository;
+	}
 
-        try {
-            repository.save(pending);
-        } catch (Exception e) {
-            throw new EmailSendException("Failed to persist email intent", e);
-        }
+	@Override
+	public SendEmailResponse send(SendEmailRequest request) {
+		SentEmail pending = new SentEmail();
+		pending.setTo(request.getTo());
+		pending.setToName(request.getToName());
+		pending.setSubject(request.getSubject());
+		pending.setBody(request.getMessage());
+		pending.setStatus("PENDING");
+		pending.setSentAt(Instant.now());
 
-        String providerMessageId = null;
-        try {
-            delegate.send(request);
-            providerMessageId = delegate.getLastProviderMessageId();
-        } catch (Exception ex) {
-            try {
-                updateFailed(pending.getId(), ex);
-            } catch (Exception ignored) {
-                // ignore
-            }
-            if (ex instanceof RuntimeException) {
-                throw ex;
-            }
-            throw new com.serveless.envio.exception.EmailSendException(ex.getMessage(), 500, ex);
-        }
+		try {
+			repository.save(pending);
+		} catch (Exception ex) {
+			throw new EmailSendException("Failed to persist email intent", 500, ex);
+		}
 
-        updateSent(pending.getId(), providerMessageId);
-        return new SendEmailResponse(true, "Email sent successfully");
-    }
+		String providerMessageId;
+		try {
+			delegate.send(request);
+			providerMessageId = delegate.getLastProviderMessageId();
+		} catch (RuntimeException ex) {
+			markFailed(pending.getId(), ex);
+			throw ex;
+		}
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    protected void updateSent(String id, String providerMessageId) {
-        repository.findById(id).ifPresent(sent -> {
-            sent.setStatus("SENT");
-            sent.setProviderMessageId(providerMessageId);
-            sent.setSentAt(Instant.now());
-            repository.save(sent);
-        });
-    }
+		repository.markSent(pending.getId(), providerMessageId, Instant.now());
+		return new SendEmailResponse(true, "Email sent successfully");
+	}
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    protected void updateFailed(String id, Exception ex) {
-        repository.findById(id).ifPresent(sent -> {
-            sent.setStatus("FAILED");
-            sent.setErrorMessage(ex.getMessage() != null ? ex.getMessage() : "Unknown error");
-            sent.setSentAt(Instant.now());
-            repository.save(sent);
-        });
-    }
+	private void markFailed(String id, Exception ex) {
+		try {
+			String message = ex.getMessage() != null ? ex.getMessage() : "Unknown error";
+			repository.markFailed(id, truncate(message), Instant.now());
+		} catch (Exception persistError) {
+			// The original send failure is the one worth propagating; the bookkeeping
+			// failure must not mask it.
+			log.warn("Failed to record FAILED status for email {}", id, persistError);
+		}
+	}
+
+	private static String truncate(String value) {
+		return value.length() <= ERROR_MESSAGE_MAX_LENGTH
+				? value
+				: value.substring(0, ERROR_MESSAGE_MAX_LENGTH);
+	}
 }
