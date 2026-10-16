@@ -9,6 +9,11 @@ public class EmailSendException extends RuntimeException {
 		this.statusCode = statusCode;
 	}
 
+	public EmailSendException(String message, int statusCode, Throwable cause) {
+		super(message, cause);
+		this.statusCode = statusCode;
+	}
+
 	public int getStatusCode() {
 		return statusCode;
 	}

@@ -35,8 +35,15 @@ public class SendGridEmailService implements EmailService {
 		this.fromName = fromName;
 	}
 
+	private String lastProviderMessageId;
+
+	public String getLastProviderMessageId() {
+		return lastProviderMessageId;
+	}
+
 	@Override
 	public SendEmailResponse send(SendEmailRequest request) {
+		lastProviderMessageId = null;
 		Email from = new Email(fromEmail, fromName);
 		Email to = new Email(request.getTo(), request.getToName());
 		Content content = new Content("text/html", request.getMessage());
@@ -48,19 +55,32 @@ public class SendGridEmailService implements EmailService {
 			sgRequest.setEndpoint("mail/send");
 			sgRequest.setBody(mail.build());
 		} catch (IOException ex) {
-			throw new EmailSendException("Failed to build the SendGrid request", 500);
+			throw new EmailSendException("Failed to build the SendGrid request", 500, ex);
 		}
 
 		Response response;
 		try {
 			response = sendGrid.api(sgRequest);
 		} catch (IOException ex) {
-			throw new EmailSendException("Failed to reach SendGrid", 502);
+			throw new EmailSendException("Failed to reach SendGrid", 502, ex);
 		}
 
 		int statusCode = response.getStatusCode();
 		if (statusCode >= 400) {
 			throw new EmailSendException("SendGrid rejected the request", statusCode);
+		}
+
+		try {
+			if (response.getHeaders() != null) {
+				for (String key : response.getHeaders().keySet()) {
+					if (key != null && "X-Message-Id".equalsIgnoreCase(key)) {
+						lastProviderMessageId = response.getHeaders().get(key);
+						break;
+					}
+				}
+			}
+		} catch (Exception ignored) {
+			lastProviderMessageId = null;
 		}
 
 		log.info("Email accepted by SendGrid for recipient {} with status {}", request.getTo(), statusCode);
