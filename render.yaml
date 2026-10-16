@@ -10,7 +10,8 @@
 # first, copy its URL, set `apiUrl`, then deploy/rebuild the frontend.
 services:
   # --------------------------------------------------------------- backend
-  # No database: this service is stateless (no send log, no idempotency store).
+  # Persists every accepted email to an external MySQL database (see
+  # SPRING_DATASOURCE_URL) and delivers it through SendGrid.
   - type: web
     name: envio-correo-backend
     runtime: docker
@@ -21,6 +22,11 @@ services:
     # Spring Boot reads the injected PORT env var; see application.yml.
     healthCheckPath: /api/emails/health
     envVars:
+      # External MySQL connection string in `mysql://user:pass@host:port/db`
+      # form. The backend rewrites it into a JDBC URL at startup, so no
+      # provider-specific value belongs in the code.
+      - key: SPRING_DATASOURCE_URL
+        sync: false
       # SendGrid API key with "Mail Send" restricted access only.
       - key: SENDGRID_API_KEY
         sync: false
