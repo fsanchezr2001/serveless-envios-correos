@@ -22,7 +22,7 @@
               "zone.js"
             ],
             "tsConfig": "tsconfig.app.json",
-            "outputPath": "../backend/src/main/resources/static",
+            "outputPath": "dist/frontend",
             "assets": [
               {
                 "glob": "**/*",

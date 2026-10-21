@@ -2,6 +2,9 @@
 node_modules
 frontend/node_modules
 
+# Frontend is deployed to Cloudflare Pages, not bundled into the backend image.
+frontend/
+
 # Build output
 dist/
 target/

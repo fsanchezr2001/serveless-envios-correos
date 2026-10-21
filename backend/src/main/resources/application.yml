@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: ${DB_URL:jdbc:h2:file:/data/emaildb}
+    url: ${DB_URL:jdbc:h2:mem:emaildb;DB_CLOSE_DELAY=-1}
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -18,5 +18,7 @@ spring:
     enabled: false
 
 sendgrid:
-  api-key: ${SENDGRID_API_KEY}
-  from: ${SENDGRID_FROM}
+  api-key: ${SENDGRID_API_KEY:}
+  from-address: ${SENDGRID_FROM:}
+  from-name: ${SENDGRID_FROM_NAME:}
+  from.name: ${SENDGRID_FROM_NAME:}

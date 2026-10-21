@@ -8,16 +8,21 @@ backend, and only the backend holds the SendGrid API key.
 ## Architecture
 
 ```text
-Angular (frontend)  ->  Spring Boot (backend)  ->  SendGrid  ->  end user
+Angular (Cloudflare Pages)  ->  Spring Boot (Render)  ->  SendGrid  ->  end user
 ```
 
 - `frontend/` - Angular 20 standalone application with a reactive email form.
+  Deployed as static assets to **Cloudflare Pages**.
 - `backend/` - Spring Boot 3 (Java 17) REST API that validates the request and
-  sends the email through SendGrid.
+  sends the email through SendGrid. Deployed to **Render** from the root `Dockerfile`.
+
+The frontend and the API are **different origins** in production, so the Angular
+build points at the absolute backend URL and the backend must allow that origin via
+`CORS_ALLOWED_ORIGINS`.
 
 ### Request flow
 
-1. The Angular form posts to `POST /api/emails`.
+1. The Angular form posts to `${apiUrl}/emails`.
 2. The backend validates the payload (bean validation) and calls SendGrid.
 3. On success the backend returns `202 Accepted` with `{ "success": boolean, "message": string }`.
 4. On validation failure it returns `400 Bad Request` with
@@ -30,6 +35,7 @@ Health check: `GET /api/emails/health`.
 
 - Node.js 20+ (developed against Node 24) and npm.
 - Java 17 and Maven (or use the Docker image).
+- Docker Desktop, only if you want to build the backend image locally.
 - A SendGrid account with a verified sender email address.
 
 ## Backend: run locally
@@ -42,7 +48,7 @@ PowerShell:
 
 ```powershell
 $env:SENDGRID_API_KEY="SG.your-real-key"
-$env:SENDGRID_FROM_EMAIL="no-reply@your-verified-domain.com"
+$env:SENDGRID_FROM="no-reply@your-verified-domain.com"
 $env:SENDGRID_FROM_NAME="Serveless Envio Correo"
 $env:CORS_ALLOWED_ORIGINS="http://localhost:4200"
 $env:PORT="8080"
@@ -77,54 +83,69 @@ Frontend (from `frontend/`):
 npm run build
 ```
 
-The output is written to `frontend/dist/frontend/browser`. Serve those static files
-from any web host and set the production API URL in
-`src/environments/environment.ts` **before** building.
+The output is written to `frontend/dist/frontend/browser`. `Cloudflare Pages` serves
+that directory; the `public/_redirects` and `public/_headers` files are copied into the
+build output and control SPA routing and cache headers.
 
-Backend (from `backend/`):
+Before deploying, set the production API URL in `src/environments/environment.ts`.
+
+Backend (from the repository root):
 
 ```powershell
-mvn clean package
-java -jar target/envio-correo-0.0.1-SNAPSHOT.jar
+docker build -t envio-correo-api .
+docker run -p 8080:8080 -e SENDGRID_API_KEY=... -e SENDGRID_FROM=... envio-correo-api
 ```
+
+The root `Dockerfile` builds **only the backend**. Angular is not embedded in the JAR.
 
 ## Environment variables
 
 | Variable               | Required | Description                                                        |
 | ---------------------- | -------- | ------------------------------------------------------------------ |
 | `SENDGRID_API_KEY`     | Yes      | SendGrid API key. Must never be committed or sent to the browser.  |
-| `SENDGRID_FROM_EMAIL`  | Yes      | Sender address. Must be a verified sender in SendGrid.             |
+| `SENDGRID_FROM`        | Yes      | Sender address. Must be a verified sender in SendGrid.             |
 | `SENDGRID_FROM_NAME`   | No       | Display name for the sender. Defaults to `Serveless Envio Correo`. |
 | `CORS_ALLOWED_ORIGINS` | No       | Comma-separated origins allowed by CORS. Defaults to `http://localhost:4200`. |
 | `PORT`                 | No       | HTTP port for the backend. Defaults to `8080`.                     |
 
 ## Deployment
 
-### Railway
+### Frontend -> Cloudflare Pages
 
-Railway builds the backend from `backend/Dockerfile`.
+1. Cloudflare dashboard -> **Workers & Pages** -> **Create** -> **Pages** ->
+   **Connect to Git** and select this repository.
+2. Build settings:
+   - **Root directory**: `frontend`
+   - **Build command**: `npm ci && npm run build`
+   - **Build output directory**: `dist/frontend/browser`
+3. Deploy. The site is published at `https://<project>.pages.dev`.
+4. Copy that URL - it is the origin the backend must allow.
 
-1. Create a new project and point it at this repository.
-2. Set the root directory to `backend/` (or configure the Dockerfile path).
-3. Add the environment variables from the table above in the Railway dashboard.
-4. Set `CORS_ALLOWED_ORIGINS` to the deployed frontend origin.
-5. After the first deploy, copy the public backend URL into
-   `frontend/src/environments/environment.ts` (`apiUrl`) and rebuild the frontend.
+### Backend -> Render
 
-### Render
+1. Render dashboard -> **New** -> **Blueprint** and select this repository.
+   Render reads `render.yaml` and creates the `envio-correo` web service, building the
+   root `Dockerfile` and health-checking `/api/emails/health`.
+2. Fill in the `sync: false` secrets in the Render dashboard:
+   `SENDGRID_API_KEY`, `SENDGRID_FROM`, `SENDGRID_FROM_NAME`, `DB_URL`, and
+   `CORS_ALLOWED_ORIGINS`.
+3. Set `CORS_ALLOWED_ORIGINS` to the Pages URL from the previous section,
+   e.g. `https://envio-correo.pages.dev`.
+4. Note the resulting service URL (e.g. `https://envio-correo.onrender.com`) and put it
+   in `frontend/src/environments/environment.ts` as `apiUrl`, then redeploy the Pages
+   project.
 
-`render.yaml` is a minimal Blueprint that declares a Docker-based `web` service for
-the backend using `backend/Dockerfile` and health-checking `/api/emails/health`.
+The two services are independent: a backend change does not rebuild the frontend, and
+vice versa.
 
-1. Create a new Blueprint in Render and select this repository.
-2. Render reads `render.yaml` and creates the service.
-3. Fill in the secret values (`sync: false` variables) in the Render dashboard.
-4. Set `CORS_ALLOWED_ORIGINS` to the deployed frontend origin.
+> **Render free plan:** the service sleeps after a period of inactivity, so the first
+> request after waking takes tens of seconds and the in-memory H2 database is reset.
+> Attach a paid instance for an always-on API.
 
 ## Security
 
 - **Never commit secrets.** `SENDGRID_API_KEY` and any other credential must live only
-  in real environment variables (Railway/Render Variables in production, `$env:...`
+  in real environment variables (Render Environment in production, `$env:...`
   locally). No `SG.` key should ever appear in the repository.
 - `backend/.env.example` contains empty placeholders and is safe to commit; real values
   must never be written into it.
@@ -136,19 +157,20 @@ the backend using `backend/Dockerfile` and health-checking `/api/emails/health`.
 
 ### `403 Forbidden` from SendGrid (unverified sender)
 
-SendGrid rejects the request when `SENDGRID_FROM_EMAIL` is not a verified sender.
-Verify the address under **Settings -> Sender Authentication** in SendGrid, or use a
-domain you have authenticated, then restart the backend with the corrected value.
+SendGrid rejects the request when the sender address is not verified. Verify it under
+**Settings -> Sender Authentication** in SendGrid, or use a domain you have
+authenticated, then restart the backend with the corrected value.
 
 ### CORS errors in the browser
 
 A CORS error means the browser origin is not in `CORS_ALLOWED_ORIGINS`. Add the exact
-frontend origin (scheme + host + port, for example `http://localhost:4200` or your
-deployed frontend URL), restart the backend, and reload. Multiple origins are
-comma-separated. The backend allows `GET`, `POST`, and `OPTIONS` with any header and
-does not allow credentials.
+frontend origin (scheme + host, for example `http://localhost:4200` or
+`https://envio-correo.pages.dev`), restart the backend, and reload. Multiple origins are
+comma-separated. The backend allows `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS` with
+any header and does not allow credentials.
 
 ### `Cannot reach the server` in the frontend
 
 The Angular app could not reach the backend. Confirm the backend is running and that
-`apiUrl` in the active environment file points to the correct host and port.
+`apiUrl` in the active environment file points to the correct host. On Render's free
+plan, a cold start can take tens of seconds.

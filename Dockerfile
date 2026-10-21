@@ -1,20 +1,18 @@
-# Imagen única (un solo contenedor) que sirve el frontend Angular desde
-# static/ de Spring Boot y expone la API del backend. Véase agente.md §10.
+# Backend-only image: Spring Boot API only. No Angular bundle is embedded.
+# The Angular SPA is built and served separately by Cloudflare Pages (see that
+# project's build settings), so this image exposes nothing but the REST API.
+#
+# Build locally:
+#   docker build -t envio-correo-api .
 
-# 1) Build del frontend Angular: salida directamente en static/ del backend
-FROM node:20 AS front
-WORKDIR /f
-COPY frontend/ .
-COPY backend/ /backend
-RUN npm ci && npm run build
-
-# 2) Build del backend con el frontend estático ya incluido
+# 1) Build the Spring Boot JAR
 FROM maven:3.9-eclipse-temurin-17 AS back
 WORKDIR /b
-COPY --from=front /backend .
+COPY backend/pom.xml .
+COPY backend/src ./src
 RUN mvn -q package -DskipTests
 
-# 3) Imagen final: solo JRE
+# 2) Runtime image: lightweight JRE
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=back /b/target/*.jar app.jar

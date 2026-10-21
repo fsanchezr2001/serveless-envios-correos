@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 
@@ -23,13 +24,16 @@ public class SendGridEmailService implements EmailService {
 	private static final Logger log = LoggerFactory.getLogger(SendGridEmailService.class);
 
 	private final SendGrid sendGrid;
-	private final String fromEmail;
+	private final Email from;
 
 	public SendGridEmailService(
 			SendGrid sendGrid,
-			@Value("${sendgrid.from}") String fromEmail) {
+			@Value("${sendgrid.from-address:}") String fromEmail,
+			@Value("${sendgrid.from-name:}") String fromName) {
 		this.sendGrid = sendGrid;
-		this.fromEmail = fromEmail;
+		this.from = StringUtils.hasText(fromName)
+				? new Email(fromEmail, fromName)
+				: new Email(fromEmail);
 	}
 
 	/**
@@ -46,7 +50,6 @@ public class SendGridEmailService implements EmailService {
 	@Override
 	public SendEmailResponse send(SendEmailRequest request) {
 		lastProviderMessageId.set(null);
-		Email from = new Email(fromEmail);
 		Email to = new Email(request.getTo(), request.getToName());
 		Content content = new Content("text/html", request.getMessage());
 		Mail mail = new Mail(from, request.getSubject(), to, content);

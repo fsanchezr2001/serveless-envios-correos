@@ -39,7 +39,7 @@ class SendGridEmailServiceTest {
 		SendGrid sendGrid = mock(SendGrid.class);
 		when(sendGrid.api(any(Request.class))).thenReturn(responseWithStatus(202));
 
-		SendGridEmailService service = new SendGridEmailService(sendGrid, FROM_EMAIL);
+		SendGridEmailService service = new SendGridEmailService(sendGrid, FROM_EMAIL, "");
 
 		SendEmailResponse response = service.send(buildRequest());
 
@@ -51,7 +51,7 @@ class SendGridEmailServiceTest {
 		SendGrid sendGrid = mock(SendGrid.class);
 		when(sendGrid.api(any(Request.class))).thenReturn(responseWithStatus(400));
 
-		SendGridEmailService service = new SendGridEmailService(sendGrid, FROM_EMAIL);
+		SendGridEmailService service = new SendGridEmailService(sendGrid, FROM_EMAIL, "");
 
 		EmailSendException exception = assertThrows(EmailSendException.class, () -> service.send(buildRequest()));
 		assertEquals(400, exception.getStatusCode());

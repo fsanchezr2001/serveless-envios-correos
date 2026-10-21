@@ -7,6 +7,10 @@ target/
 
 # Environment / secrets
 .env
+.dev.vars
+
+# Cloudflare Wrangler
+.wrangler/
 
 # Logs
 *.log
