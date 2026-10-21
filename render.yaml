@@ -8,7 +8,7 @@
 # A single Docker service serves both the Angular static build and the Spring Boot API.
 services:
   - type: web
-    name: envio-correo
+    name: serveless-envios-correos
     runtime: docker
     plan: free
     rootDir: .

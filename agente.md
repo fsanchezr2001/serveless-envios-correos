@@ -21,7 +21,7 @@ Aplicación web integral donde el usuario completa un formulario reactivo y env�
 | **Empaquetado (backend)** | Docker | Build multi-stage (Maven 3.9 + JRE 17) solo del backend, en `Dockerfile` raíz |
 | **Empaquetado (frontend)** | Angular CLI | `npm run build` -> `dist/frontend/browser`, servido como estáticos |
 | **Hosting Frontend** | Cloudflare Pages | Proyecto `envio-correo` -> `https://envio-correo.pages.dev` |
-| **Hosting Backend** | Render | Web Service (runtime Docker) desde el `Dockerfile` raíz |
+| **Hosting Backend** | Render | Web Service `serveless-envios-correos` (runtime Docker) desde el `Dockerfile` raíz |
 
 ---
 
@@ -35,9 +35,9 @@ Aplicación web integral donde el usuario completa un formulario reactivo y env�
 ┌─────────────────────────────────────────────────────────────┐
 │ Cloudflare Pages (SPA Angular 20 - estáticos, sin backend)   │
 │  https://envio-correo.pages.dev                              │
-│  - apiUrl: https://envio-correo.onrender.com/api            │
+│  - apiUrl: https://serveless-envios-correos.onrender.com/api │
 └──────────┬──────────────────────────────────────────────────┘
-           │ (POST https://envio-correo.onrender.com/api/emails)
+           │ (POST https://serveless-envios-correos.onrender.com/api/emails)
            │  origen cruzado -> requiere CORS_ALLOWED_ORIGINS
            ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -205,19 +205,21 @@ La aplicación son **dos servicios independientes**.
 
 ### 8.1 Frontend → Cloudflare Pages
 
-1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
-2. Configurar el build:
-   * **Root directory**: `frontend`
-   * **Build command**: `npm ci && npm run build`
-   * **Build output directory**: `dist/frontend/browser`
-3. Desplegar. URL resultante: `https://envio-correo.pages.dev`.
+1. El proyecto de Pages `envio-correo` se publica por **direct upload**; no está
+   conectado a Git, por lo que un `git push` no despliega el frontend.
+2. Desde `frontend/`:
+   ```bash
+   npm ci && npm run build
+   npx wrangler pages deploy dist/frontend/browser --project-name envio-correo --branch main
+   ```
+3. URL resultante: `https://envio-correo.pages.dev`.
 4. `frontend/public/_redirects` (`/* -> /index.html 200`) resuelve el ruteo del SPA y
    `frontend/public/_headers` define la caché (`index.html` sin caché, bundles inmutables).
 
 ### 8.2 Backend → Render
 
 1. Render Dashboard → **New → Blueprint** y seleccionar el repositorio. Render lee
-   `render.yaml` y crea el Web Service `envio-correo` con `runtime: docker`,
+   `render.yaml` y crea el Web Service `serveless-envios-correos` con `runtime: docker`,
    `dockerfilePath: ./Dockerfile` y `healthCheckPath: /api/emails/health`.
 2. Completar los secretos marcados con `sync: false` en la pestaña **Environment**:
    * `SENDGRID_API_KEY`: clave limpia, sin sufijos extra (`Copied!`).
@@ -226,7 +228,7 @@ La aplicación son **dos servicios independientes**.
    * `DB_URL`: `jdbc:h2:mem:emaildb;DB_CLOSE_DELAY=-1`.
    * `CORS_ALLOWED_ORIGINS`: el dominio de Pages, `https://envio-correo.pages.dev`.
 3. Guardar: Render reinicia el contenedor con las variables activas.
-4. Copiar la URL del servicio (`https://envio-correo.onrender.com`) a
+4. Copiar la URL del servicio (`https://serveless-envios-correos.onrender.com`) a
    `frontend/src/environments/environment.ts` (`apiUrl`) y re-desplegar Pages.
 
 > ⚠️ **Plan free de Render**: el servicio se duerme tras un periodo de inactividad. La
@@ -255,6 +257,6 @@ La aplicación son **dos servicios independientes**.
 - [x] `Dockerfile` multi-stage **solo backend** (Angular fuera del JAR), build verificado
 - [x] `frontend/public/_redirects` y `_headers` para el ruteo y caché del SPA
 - [x] Blueprint `render.yaml` con `dockerfilePath`, health check y `CORS_ALLOWED_ORIGINS`
-- [ ] Conectar el repositorio a Cloudflare Pages (proyecto `envio-correo`)
+- [x] Republicar el frontend con `wrangler pages deploy` (proyecto `envio-correo`)
 - [ ] Crear el Web Service en Render y completar los secretos
 - [ ] Fijar `CORS_ALLOWED_ORIGINS` con la URL final de Pages

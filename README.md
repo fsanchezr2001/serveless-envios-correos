@@ -112,28 +112,35 @@ The root `Dockerfile` builds **only the backend**. Angular is not embedded in th
 
 ### Frontend -> Cloudflare Pages
 
-1. Cloudflare dashboard -> **Workers & Pages** -> **Create** -> **Pages** ->
-   **Connect to Git** and select this repository.
-2. Build settings:
-   - **Root directory**: `frontend`
-   - **Build command**: `npm ci && npm run build`
-   - **Build output directory**: `dist/frontend/browser`
-3. Deploy. The site is published at `https://<project>.pages.dev`.
-4. Copy that URL - it is the origin the backend must allow.
+The `envio-correo` Pages project is deployed by **direct upload**. It is not
+connected to Git, so pushing a commit does not publish the frontend; run the deploy
+command after every frontend change.
+
+From `frontend/`:
+
+```powershell
+npx wrangler login   # one time only
+npm ci
+npm run build
+npx wrangler pages deploy dist/frontend/browser --project-name envio-correo --branch main
+```
+
+The site is published at `https://envio-correo.pages.dev`; that is the origin the
+backend must allow in `CORS_ALLOWED_ORIGINS`.
 
 ### Backend -> Render
 
 1. Render dashboard -> **New** -> **Blueprint** and select this repository.
-   Render reads `render.yaml` and creates the `envio-correo` web service, building the
-   root `Dockerfile` and health-checking `/api/emails/health`.
+   Render reads `render.yaml` and creates the `serveless-envios-correos` web service,
+   building the root `Dockerfile` and health-checking `/api/emails/health`.
 2. Fill in the `sync: false` secrets in the Render dashboard:
    `SENDGRID_API_KEY`, `SENDGRID_FROM`, `SENDGRID_FROM_NAME`, `DB_URL`, and
    `CORS_ALLOWED_ORIGINS`.
 3. Set `CORS_ALLOWED_ORIGINS` to the Pages URL from the previous section,
    e.g. `https://envio-correo.pages.dev`.
-4. Note the resulting service URL (e.g. `https://envio-correo.onrender.com`) and put it
-   in `frontend/src/environments/environment.ts` as `apiUrl`, then redeploy the Pages
-   project.
+4. Note the resulting service URL (`https://serveless-envios-correos.onrender.com`) and
+   put it in `frontend/src/environments/environment.ts` as `apiUrl`, then redeploy the
+   Pages project.
 
 The two services are independent: a backend change does not rebuild the frontend, and
 vice versa.
@@ -174,3 +181,10 @@ any header and does not allow credentials.
 The Angular app could not reach the backend. Confirm the backend is running and that
 `apiUrl` in the active environment file points to the correct host. On Render's free
 plan, a cold start can take tens of seconds.
+
+### The deployed page still calls an old backend URL
+
+Cloudflare Pages direct uploads are not rebuilt by Git. After changing
+`src/environments/environment.ts`, rebuild and redeploy from `frontend/` with
+`npm run build && npx wrangler pages deploy dist/frontend/browser --project-name envio-correo --branch main`,
+then reload the site to pick up the new bundle.
