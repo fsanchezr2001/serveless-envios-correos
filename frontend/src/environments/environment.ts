@@ -5,5 +5,5 @@
 // and that origin must be present in the backend's CORS_ALLOWED_ORIGINS.
 export const environment = {
   production: true,
-  apiUrl: 'https://envio-correo.onrender.com/api',
+  apiUrl: 'https://serveless-envios-correos.onrender.com/api',
 };
